@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D FPS Game with Arcade Cabinet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+        }
+        #debug-ui {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            display: none;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #debug-ui h3 {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .slider-container input[type="range"] {
+            width: 200px;
+        }
+        #close-debug {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #ff4444;
+        }
+        #prompt {
+            position: fixed;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div id="crosshair">+</div>
+<div id="debug-ui">
+    <span id="close-debug">X</span>
+    <h3>Select a Component:</h3>
+    <select id="component-select">
+        <option value="arcadeParent1">Arcade 1 (Parent)</option>
+        <option value="arcadeParent2">Arcade 2 (Parent)</option>
+        <option value="arcadeParent3">Arcade 3 (Parent)</option>
+        <option value="arcadeParent4">Arcade 4 (Parent)</option>
+        <option value="arcadeParent5">Arcade 5 (Parent)</option>
+        <option value="mainBody">Main Body</option>
+        <option value="screenFrame">Screen Frame</option>
+        <option value="screen">Screen</option>
+        <option value="controlPanel">Control Panel</option>
+        <option value="joystick1">Joystick 1</option>
+        <option value="joystick2">Joystick 2</option>
+        <option value="marquee">Marquee</option>
+        <option value="frontPanel">Front Panel</option>
+        <option value="coinSlot">Coin Slot</option>
+        <option value="base">Base</option>
+        <option value="player1Button">Player 1 Button</option>
+        <option value="player2Button">Player 2 Button</option>
+    </select>
+    <div id="sliders">
+        <div class="slider-container">
+            <h3 id="component-name">Arcade 1 (Parent)</h3>
+            <label>Position X: <span id="pos-x-value">0</span></label>
+            <input type="range" id="pos-x" min="-10" max="10" step="0.01" value="0">
+            <label>Position Y: <span id="pos-y-value">0</span></label>
+            <input type="range" id="pos-y" min="-10" max="10" step="0.01" value="0">
+            <label>Position Z: <span id="pos-z-value">0</span></label>
+            <input type="range" id="pos-z" min="-10" max="10" step="0.01" value="0">
+            <label>Rotation X: <span id="rot-x-value">0</span></label>
+            <input type="range" id="rot-x" min="-3.14" max="3.14" step="0.01" value="0">
+            <label>Rotation Y: <span id="rot-y-value">0</span></label>
+            <input type="range" id="rot-y" min="-3.14" max="3.14" step="0.01" value="0">
+            <label>Rotation Z: <span id="rot-z-value">0</span></label>
+            <input type="range" id="rot-z" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+    </div>
+</div>
+<div id="prompt">Press E to play (E again to stop)</div>
+
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Set sky color (background)
+    scene.background = new THREE.Color(0x87ceeb); // Light blue sky
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(0, 10, 0);
+    scene.add(directionalLight);
+
+    // Player setup (Capsule)
+    const capsuleGeometry = new THREE.CapsuleGeometry(0.5, 1.8, 8, 16);
+    const capsuleMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
+    scene.add(capsule);
+
+    // Player object
+    const player = {
+        mesh: capsule,
+        velocity: new THREE.Vector3(0, 0, 0),
+        isOnGround: false,
+        height: 1.8,
+        radius: 0.5
+    };
+
+    // Ground
+    const groundGeometry = new THREE.BoxGeometry(50, 1, 50);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 }); // Gray ground
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.position.y = -0.5;
+    scene.add(ground);
+
+    // Controls
+    const controls = new PointerLockControls(camera, document.body);
+    camera.position.set(0, player.height, 0);
+
+    // Input handling
+    const keyStates = {};
+    document.addEventListener('keydown', e => {
+        keyStates[e.key.toLowerCase()] = true;
+        if (e.key.toLowerCase() === 'p') {
+            toggleDebugUI();
+        } else if (e.key.toLowerCase() === 'e') {
+            toggleMiniGame();
+        }
+    });
+    document.addEventListener('keyup', e => keyStates[e.key.toLowerCase()] = false);
+
+    // Pointer lock initialization
+    document.addEventListener('click', () => {
+        if (!controls.isLocked && !isDebugUIActive) {
+            controls.lock();
+        }
+    });
+
+    // Game constants
+    const MOVEMENT_SPEED = 5;
+    const SPRINT_MULTIPLIER = 2;
+    const JUMP_FORCE = 4;
+    const GRAVITY = 9.8;
+
+    // Collision detection
+    function checkGroundCollision() {
+        const playerBottom = new THREE.Vector3(
+            player.mesh.position.x,
+            player.mesh.position.y - player.height / 2,
+            player.mesh.position.z
+        );
+
+        if (playerBottom.y <= 0) {
+            player.mesh.position.y = player.height / 2;
+            player.velocity.y = 0;
+            player.isOnGround = true;
+        } else {
+            player.isOnGround = false;
+        }
+    }
+
+    // Create button helper function
+    const createButton = (color) => {
+        return new THREE.Mesh(
+            new THREE.CylinderGeometry(0.06, 0.06, 0.04, 32),
+            new THREE.MeshPhongMaterial({ color: 0xFF0000 }) // Red buttons
+        );
+    };
+
+    function createPong() {
+        const miniGameScene = new THREE.Scene();
+        const miniGameCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+        miniGameCamera.position.z = 5;
+
+        // Black background
+        const bgGeometry = new THREE.PlaneGeometry(2, 2);
+        const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const bg = new THREE.Mesh(bgGeometry, bgMaterial);
+        bg.position.z = -1;
+        miniGameScene.add(bg);
+
+        // Paddle (updated size)
+        const paddleGeometry = new THREE.BoxGeometry(0.4, 0.3, 0.1); // Width: 0.4, Height: 0.3, Depth: 0.1
+        const paddleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const paddle = new THREE.Mesh(paddleGeometry, paddleMaterial);
+        paddle.position.set(0, -0.9, 0); // Center at y = -0.9
+        miniGameScene.add(paddle);
+
+        // Ball
+        const ballGeometry = new THREE.CircleGeometry(0.05, 32);
+        const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+        ball.position.set(0, 0, 0);
+        miniGameScene.add(ball);
+
+        // Game state
+        let isActive = false;
+        let ballVelocity = new THREE.Vector2(0.5, 0.5);
+        const paddleSpeed = 2;
+        let score = 0;
+
+        function resetBall() {
+            ball.position.set(0, 0, 0);
+            ballVelocity.set(0.5 * (Math.random() > 0.5 ? 1 : -1), 0.5);
+            score = 0;
+        }
+
+        const update = (delta) => {
+            if (!isActive) return;
+
+            // Paddle movement
+            if (keyStates['a'] && paddle.position.x > -0.8) {
+                paddle.position.x -= paddleSpeed * delta;
+            }
+            if (keyStates['d'] && paddle.position.x < 0.8) {
+                paddle.position.x += paddleSpeed * delta;
+            }
+
+            // Ball movement
+            ball.position.x += ballVelocity.x * delta;
+            ball.position.y += ballVelocity.y * delta;
+
+            // Wall collision
+            if (ball.position.x > 0.95 || ball.position.x < -0.95) {
+                ballVelocity.x *= -1;
+            }
+            if (ball.position.y > 0.95) {
+                ballVelocity.y *= -1;
+            }
+
+            // Paddle collision (updated for new paddle height)
+            if (ball.position.y < -0.75 && ball.position.y > -1.05 && // New range: top (-0.75) to bottom (-1.05)
+                ball.position.x > paddle.position.x - 0.2 &&          // Half paddle width
+                ball.position.x < paddle.position.x + 0.2) {
+                ballVelocity.y *= -1;
+                score++;
+            }
+
+            // Ball missed (reset)
+            if (ball.position.y < -1.05) { // Adjusted to match new paddle bottom
+                resetBall();
+            }
+        };
+
+        return {
+            scene: miniGameScene,
+            camera: miniGameCamera,
+            update,
+            activate: () => { isActive = true; resetBall(); },
+            deactivate: () => { isActive = false; resetBall(); },
+            isActive: () => isActive
+        };
+    }
+
+    // Define canvas texture for marquee
+    const marqueeCanvas = document.createElement('canvas');
+    marqueeCanvas.width = 256;
+    marqueeCanvas.height = 64;
+    const marqueeCtx = marqueeCanvas.getContext('2d');
+    marqueeCtx.fillStyle = 'blue';
+    marqueeCtx.fillRect(0, 0, 256, 64);
+    marqueeCtx.fillStyle = 'white';
+    marqueeCtx.font = '32px Arial';
+    marqueeCtx.fillText('ARCADE', 50, 40);
+    const marqueeTexture = new THREE.CanvasTexture(marqueeCanvas);
+
+    // Create arcade cabinet function
+    function createArcadeCabinet(id) {
+        const arcadeParent = new THREE.Group();
+        arcadeParent.name = id;
+
+        // Create Pong mini-game
+        const { scene: miniGameScene, camera: miniGameCamera, update: miniGameUpdate, activate, deactivate, isActive } = createPong();
+        const renderTarget = new THREE.WebGLRenderTarget(256, 256);
+
+        // Store mini-game components
+        arcadeParent.miniGameScene = miniGameScene;
+        arcadeParent.miniGameCamera = miniGameCamera;
+        arcadeParent.miniGameUpdate = miniGameUpdate;
+        arcadeParent.miniGameActivate = activate;
+        arcadeParent.miniGameDeactivate = deactivate;
+        arcadeParent.miniGameIsActive = isActive;
+        arcadeParent.renderTarget = renderTarget;
+
+        // Main Body
+        const mainBody = new THREE.Mesh(
+            new THREE.BoxGeometry(1.2, 2.5, 1),
+            new THREE.MeshPhongMaterial({ color: 0x000000 })
+        );
+        mainBody.position.set(0, 0, 0);
+        mainBody.rotation.set(0, 0, 0);
+        mainBody.name = "mainBody";
+        arcadeParent.add(mainBody);
+
+        // Blue trim at corners
+        const trimGeometry = new THREE.BoxGeometry(0.05, 2.5, 0.05);
+        const trimMaterial = new THREE.MeshPhongMaterial({ color: 0x0000FF });
+        const trimPositions = [
+            { x: -0.6, z: 0.5 },  // Left front
+            { x: 0.6, z: 0.5 },   // Right front
+            { x: -0.6, z: -0.5 }, // Left back
+            { x: 0.6, z: -0.5 }   // Right back
+        ];
+        trimPositions.forEach(pos => {
+            const trim = new THREE.Mesh(trimGeometry, trimMaterial);
+            trim.position.set(pos.x, 0, pos.z);
+            arcadeParent.add(trim);
+        });
+
+        // Screen Frame
+        const screenFrame = new THREE.Mesh(
+            new THREE.BoxGeometry(1.1, 1.1, 0.1),
+            new THREE.MeshPhongMaterial({ color: 0x333333 })
+        );
+        screenFrame.position.set(0, 1.72, -0.28);
+        screenFrame.rotation.set(-0.54, 0, 0);
+        screenFrame.name = "screenFrame";
+        arcadeParent.add(screenFrame);
+
+        // Screen with mini-game texture
+        const screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({ map: renderTarget.texture })
+        );
+        screen.position.set(0, 1.72, -0.22);
+        screen.rotation.set(-0.54, 0, 0);
+        screen.name = "screen";
+        arcadeParent.add(screen);
+
+        // Control Panel
+        const controlPanel = new THREE.Mesh(
+            new THREE.BoxGeometry(1.1, 0.2, 0.5),
+            new THREE.MeshPhongMaterial({ color: 0x444444 })
+        );
+        controlPanel.position.set(0, 1.20, 0.22);
+        controlPanel.rotation.set(0.20, 0, 0);
+        controlPanel.name = "controlPanel";
+        arcadeParent.add(controlPanel);
+
+        // Joystick 1 (Player 1)
+        const joystickBase1 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.05, 32),
+            new THREE.MeshPhongMaterial({ color: 0x666666 })
+        );
+        const joystickHandle1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.06),
+            new THREE.MeshPhongMaterial({ color: 0x0000FF })
+        );
+        joystickHandle1.position.y = 0.05;
+        const joystick1 = new THREE.Group();
+        joystick1.add(joystickBase1, joystickHandle1);
+        joystick1.position.set(-0.27, 1.33, 0.28);
+        joystick1.rotation.set(0, 0, 0);
+        joystick1.name = "joystick1";
+        arcadeParent.add(joystick1);
+
+        // Player 1 button
+        const player1Button = createButton(0xFF0000);
+        player1Button.position.set(-0.11, 1.33, 0.30);
+        player1Button.rotation.set(0, 0, 0);
+        player1Button.name = "player1Button";
+        arcadeParent.add(player1Button);
+
+        // Joystick 2 (Player 2)
+        const joystickBase2 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.05, 32),
+            new THREE.MeshPhongMaterial({ color: 0x666666 })
+        );
+        const joystickHandle2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.06),
+            new THREE.MeshPhongMaterial({ color: 0x0000FF })
+        );
+        joystickHandle2.position.y = 0.05;
+        const joystick2 = new THREE.Group();
+        joystick2.add(joystickBase2, joystickHandle2);
+        joystick2.position.set(0.27, 1.33, 0.28);
+        joystick2.rotation.set(0, 0, 0);
+        joystick2.name = "joystick2";
+        arcadeParent.add(joystick2);
+
+        // Player 2 button
+        const player2Button = createButton(0xFF0000);
+        player2Button.position.set(0.42, 1.33, 0.30);
+        player2Button.rotation.set(0, 0, 0);
+        player2Button.name = "player2Button";
+        arcadeParent.add(player2Button);
+
+        // Marquee
+        const marquee = new THREE.Mesh(
+            new THREE.BoxGeometry(1.1, 0.2, 0.1),
+            new THREE.MeshPhongMaterial({ map: marqueeTexture })
+        );
+        marquee.position.set(0, 2.31, -0.56);
+        marquee.rotation.set(0, 0, 0);
+        marquee.name = "marquee";
+        arcadeParent.add(marquee);
+
+        // Front Panel
+        const frontPanel = new THREE.Mesh(
+            new THREE.BoxGeometry(1.1, 0.6, 0.05),
+            new THREE.MeshPhongMaterial({ color: 0x222222 })
+        );
+        frontPanel.position.set(0, 0.50, 0.50);
+        frontPanel.rotation.set(0, 0, 0);
+        frontPanel.name = "frontPanel";
+        arcadeParent.add(frontPanel);
+
+        // Coin Slot
+        const coinSlot = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.1, 0.01),
+            new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+        );
+        coinSlot.position.set(0.33, 0.67, 0.53);
+        coinSlot.rotation.set(0, 0, 0);
+        coinSlot.name = "coinSlot";
+        arcadeParent.add(coinSlot);
+
+        // Base
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(1.3, 0.1, 1.1),
+            new THREE.MeshPhongMaterial({ color: 0x333333 })
+        );
+        base.position.set(0, 0, 0);
+        base.rotation.set(0, 0, 0);
+        base.name = "base";
+        arcadeParent.add(base);
+
+        return arcadeParent;
+    }
+
+    // Create and position multiple arcade cabinets
+    const arcadePositions = [
+        { x: 0, z: -5 },  // Arcade 1
+        { x: 5, z: -5 },  // Arcade 2
+        { x: -5, z: -5 }, // Arcade 3
+        { x: 0, z: -10 }, // Arcade 4
+        { x: 5, z: -10 }  // Arcade 5
+    ];
+
+    const arcades = [];
+    arcadePositions.forEach((pos, index) => {
+        const id = `arcadeParent${index + 1}`;
+        const arcade = createArcadeCabinet(id);
+        arcade.position.set(pos.x, 0, pos.z);
+        scene.add(arcade);
+        arcades.push(arcade);
+    });
+
+    // Debug UI Functions
+    let isDebugUIActive = false;
+    const debugUI = document.getElementById('debug-ui');
+    const componentSelect = document.getElementById('component-select');
+    const sliders = document.getElementById('sliders');
+    const componentName = document.getElementById('component-name');
+    const posX = document.getElementById('pos-x');
+    const posY = document.getElementById('pos-y');
+    const posZ = document.getElementById('pos-z');
+    const rotX = document.getElementById('rot-x');
+    const rotY = document.getElementById('rot-y');
+    const rotZ = document.getElementById('rot-z');
+    const posXValue = document.getElementById('pos-x-value');
+    const posYValue = document.getElementById('pos-y-value');
+    const posZValue = document.getElementById('pos-z-value');
+    const rotXValue = document.getElementById('rot-x-value');
+    const rotYValue = document.getElementById('rot-y-value');
+    const rotZValue = document.getElementById('rot-z-value');
+    const closeDebug = document.getElementById('close-debug');
+
+    function toggleDebugUI() {
+        isDebugUIActive = !isDebugUIActive;
+        debugUI.style.display = isDebugUIActive ? 'block' : 'none';
+
+        if (isDebugUIActive) {
+            controls.unlock();
+        } else {
+            controls.lock();
+        }
+
+        if (isDebugUIActive) {
+            updateSliders();
+        }
+    }
+
+    function updateSliders() {
+        const selectedComponentName = componentSelect.value;
+        let selectedComponent = null;
+
+        arcades.forEach(arcade => {
+            selectedComponent = arcade.getObjectByName(selectedComponentName);
+            if (selectedComponent) return;
+        });
+
+        if (selectedComponent) {
+            componentName.textContent = selectedComponent.name;
+
+            const position = selectedComponent.position;
+            const rotation = selectedComponent.rotation;
+
+            posX.value = position.x;
+            posY.value = position.y;
+            posZ.value = position.z;
+            rotX.value = rotation.x;
+            rotY.value = rotation.y;
+            rotZ.value = rotation.z;
+
+            posXValue.textContent = position.x.toFixed(2);
+            posYValue.textContent = position.y.toFixed(2);
+            posZValue.textContent = position.z.toFixed(2);
+            rotXValue.textContent = rotation.x.toFixed(2);
+            rotYValue.textContent = rotation.y.toFixed(2);
+            rotZValue.textContent = rotation.z.toFixed(2);
+        }
+    }
+
+    function updateComponent() {
+        const selectedComponentName = componentSelect.value;
+        let selectedComponent = null;
+
+        arcades.forEach(arcade => {
+            selectedComponent = arcade.getObjectByName(selectedComponentName);
+            if (selectedComponent) {
+                selectedComponent.position.set(
+                    parseFloat(posX.value),
+                    parseFloat(posY.value),
+                    parseFloat(posZ.value)
+                );
+                selectedComponent.rotation.set(
+                    parseFloat(rotX.value),
+                    parseFloat(rotY.value),
+                    parseFloat(rotZ.value)
+                );
+
+                posXValue.textContent = posX.value;
+                posYValue.textContent = posY.value;
+                posZValue.textContent = posZ.value;
+                rotXValue.textContent = rotX.value;
+                rotYValue.textContent = rotY.value;
+                rotZValue.textContent = rotZ.value;
+                return;
+            }
+        });
+    }
+
+    [posX, posY, posZ, rotX, rotY, rotZ].forEach(slider => {
+        slider.addEventListener('input', updateComponent);
+    });
+    componentSelect.addEventListener('change', updateSliders);
+    closeDebug.addEventListener('click', toggleDebugUI);
+
+    // Mini-game activation logic
+    const prompt = document.getElementById('prompt');
+    const proximityThreshold = 3;
+    let activeArcade = null;
+
+    function getNearestArcade() {
+        const playerPosition = player.mesh.position;
+        let closestArcade = null;
+        let minDistance = proximityThreshold;
+
+        arcades.forEach(arcade => {
+            const distance = playerPosition.distanceTo(arcade.position);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestArcade = arcade;
+            }
+        });
+
+        return closestArcade;
+    }
+
+    function toggleMiniGame() {
+        const nearestArcade = getNearestArcade();
+        if (!nearestArcade) return;
+
+        if (nearestArcade.miniGameIsActive()) {
+            nearestArcade.miniGameDeactivate();
+            activeArcade = null;
+            controls.lock(); // Return to FPS controls
+            prompt.style.display = 'block';
+        } else {
+            nearestArcade.miniGameActivate();
+            activeArcade = nearestArcade;
+            controls.unlock(); // Focus on mini-game
+            prompt.style.display = 'none';
+        }
+    }
+
+    // Game loop
+    const clock = new THREE.Clock();
+
+    function updatePlayer(delta) {
+        if (!controls.isLocked) return;
+
+        const forward = new THREE.Vector3();
+        const right = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+        right.crossVectors(new THREE.Vector3(0, 1, 0), forward);
+
+        const moveX = (keyStates['a'] ? 1 : 0) - (keyStates['d'] ? 1 : 0);
+        const moveZ = (keyStates['w'] ? 1 : 0) - (keyStates['s'] ? 1 : 0);
+
+        const moveDirection = new THREE.Vector3()
+            .addScaledVector(forward, moveZ)
+            .addScaledVector(right, moveX)
+            .normalize();
+
+        const currentSpeed = keyStates['shift'] ? MOVEMENT_SPEED * SPRINT_MULTIPLIER : MOVEMENT_SPEED;
+        player.velocity.x = moveDirection.x * currentSpeed;
+        player.velocity.z = moveDirection.z * currentSpeed;
+
+        if (keyStates[' '] && player.isOnGround) {
+            player.velocity.y = JUMP_FORCE;
+            player.isOnGround = false;
+        }
+
+        player.velocity.y -= GRAVITY * delta;
+
+        player.mesh.position.add(player.velocity.clone().multiplyScalar(delta));
+
+        checkGroundCollision();
+
+        camera.position.copy(player.mesh.position);
+        camera.position.y += player.height / 2;
+    }
+
+    function animate() {
+        const delta = clock.getDelta();
+        requestAnimationFrame(animate);
+
+        updatePlayer(delta);
+
+        // Check proximity and show prompt
+        const nearestArcade = getNearestArcade();
+        if (nearestArcade && !nearestArcade.miniGameIsActive()) {
+            prompt.style.display = 'block';
+        } else {
+            prompt.style.display = 'none';
+        }
+
+        // Update and render mini-games for each arcade
+        arcades.forEach(arcade => {
+            if (arcade.miniGameUpdate) {
+                arcade.miniGameUpdate(delta);
+            }
+            renderer.setRenderTarget(arcade.renderTarget);
+            renderer.render(arcade.miniGameScene, arcade.miniGameCamera);
+        });
+
+        // Render main scene
+        renderer.setRenderTarget(null);
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Window resize handler
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>

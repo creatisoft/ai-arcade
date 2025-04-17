@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>Vibe Arcade</title>
+    <style>
+        /* Existing CSS unchanged */
+        * { margin: 0; padding: 0; }
+        body { overflow: hidden; }
+        canvas { display: block; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 24px; pointer-events: none; }
+        #debug-ui { position: fixed; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); color: white; padding: 10px; border-radius: 5px; font-family: Arial, sans-serif; display: none; max-height: 80vh; overflow-y: auto; }
+        #debug-ui h3 { margin: 5px 0; font-size: 16px; }
+        .slider-container { margin: 10px 0; }
+        .slider-container label { display: block; margin-bottom: 5px; }
+        .slider-container input[type="range"] { width: 200px; }
+        #close-debug { position: absolute; top: 5px; right: 5px; cursor: pointer; font-size: 14px; color: #ff4444; }
+        #prompt { position: fixed; top: 60%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; font-family: Arial, sans-serif; background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px; display: none; }
+    </style>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }
+    }
+</script>
+  <script type="module" crossorigin src="/arcade-vibe/assets/index-D5HJBRyw.js"></script>
+</head>
+<body>
+<div id="crosshair">+</div>
+<div id="debug-ui">
+    <span id="close-debug">X</span>
+    <h3>Select a Component:</h3>
+    <select id="component-select">
+        <option value="arcadeParent1">Arcade 1 (Parent)</option>
+        <option value="arcadeParent2">Arcade 2 (Parent)</option>
+        <option value="arcadeParent3">Arcade 3 (Parent)</option>
+        <option value="arcadeParent4">Arcade 4 (Parent)</option>
+        <option value="arcadeParent5">Arcade 5 (Parent)</option>
+        <option value="mainBody">Main Body</option>
+        <option value="screenFrame">Screen Frame</option>
+        <option value="screen">Screen</option>
+        <option value="controlPanel">Control Panel</option>
+        <option value="joystick1">Joystick 1</option>
+        <option value="joystick2">Joystick 2</option>
+        <option value="marquee">Marquee</option>
+        <option value="frontPanel">Front Panel</option>
+        <option value="coinSlot">Coin Slot</option>
+        <option value="base">Base</option>
+        <option value="player1Button">Player 1 Button</option>
+        <option value="player2Button">Player 2 Button</option>
+    </select>
+    <div id="sliders">
+        <div class="slider-container">
+            <h3 id="component-name">Arcade 1 (Parent)</h3>
+            <label>Position X: <span id="pos-x-value">0</span></label>
+            <input type="range" id="pos-x" min="-10" max="10" step="0.01" value="0">
+            <label>Position Z: <span id="pos-z-value">0</span></label>
+            <input type="range" id="pos-z" min="-10" max="10" step="0.01" value="0">
+            <label>Rotation Y: <span id="rot-y-value">0</span></label>
+            <input type="range" id="rot-y" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+    </div>
+</div>
+<div id="prompt">Press E to play (E again to stop)</div>
+
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+
+<!-- Existing Cloudflare scripts unchanged -->
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9230cc5fafee0585',t:'MTc0MjQyNzQ1My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9239e9aa4d675a57',t:'MTc0MjUyMzAyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'923cc35dbb5f672f',t:'MTc0MjU1MjkzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
